@@ -1,7 +1,7 @@
 package com.hridoykrisnadas.leadstodatabase.config;
 
-import com.hridoykrisnadas.leadstodatabase.model.Person;
-import com.hridoykrisnadas.leadstodatabase.partition.PersonRowPartitioner;
+import com.hridoykrisnadas.leadstodatabase.model.Address;
+import com.hridoykrisnadas.leadstodatabase.partition.AddressRowPartitioner;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -27,27 +27,27 @@ import org.springframework.transaction.PlatformTransactionManager;
 @RequiredArgsConstructor
 public class BatchConfig {
 
-    private final PersonWriter personWriter;
+    private final AddressWriter addressWriter;
 
     @Bean
     @JobScope
-    public FlatFileItemReader<Person> reader() {
-        FlatFileItemReader<Person> itemReader = new FlatFileItemReader<>();
-        itemReader.setResource(new ClassPathResource("csv/people-1M.csv"));
+    public FlatFileItemReader<Address> reader() {
+        FlatFileItemReader<Address> itemReader = new FlatFileItemReader<>();
+        itemReader.setResource(new ClassPathResource("csv/adressen_csv.csv"));
         itemReader.setName("csvReader");
         itemReader.setLinesToSkip(1);
         itemReader.setLineMapper(getLineMapper());
         return itemReader;
     }
 
-    private LineMapper<Person> getLineMapper() {
-        DefaultLineMapper<Person> lineMapper = new DefaultLineMapper<>();
+    private LineMapper<Address> getLineMapper() {
+        DefaultLineMapper<Address> lineMapper = new DefaultLineMapper<>();
         DelimitedLineTokenizer lineTokenizer = new DelimitedLineTokenizer();
-        lineTokenizer.setDelimiter(",");
+        lineTokenizer.setDelimiter("|");
         lineTokenizer.setStrict(false);
-        lineTokenizer.setNames("id", "userId", "firstName", "lastName", "gender", "email", "phone", "birthdate", "designation");
-        BeanWrapperFieldSetMapper<Person> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
-        fieldSetMapper.setTargetType(Person.class);
+        lineTokenizer.setNames("id", "straat", "huisnummer", "toevoeging", "postcode", "gemeente", "woonplaats", "provincie", "latitude", "longitude", "created_at", "updated_at");
+        BeanWrapperFieldSetMapper<Address> fieldSetMapper = new BeanWrapperFieldSetMapper<>();
+        fieldSetMapper.setTargetType(Address.class);
         lineMapper.setLineTokenizer(lineTokenizer);
         lineMapper.setFieldSetMapper(fieldSetMapper);
         return lineMapper;
@@ -55,29 +55,29 @@ public class BatchConfig {
 
     @Bean
     @StepScope
-    public PersonItemProcessor processor() {
-        return new PersonItemProcessor();
+    public AddressItemProcessor processor() {
+        return new AddressItemProcessor();
     }
 
     @Bean
-    public PersonRowPartitioner partitioner() {
-        return new PersonRowPartitioner();
+    public AddressRowPartitioner partitioner() {
+        return new AddressRowPartitioner();
     }
 
 
     @Bean
     public Step childStep(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager) {
         return new StepBuilder("csv-step", jobRepository)
-                .<Person, Person>chunk(50000, platformTransactionManager)
+                .<Address, Address>chunk(50000, platformTransactionManager)
                 .reader(reader())
                 .processor(processor())
-                .writer(personWriter)
+                .writer(addressWriter)
                 .build();
     }
 
     @Bean
     public Job runjob(JobRepository jobRepository, PlatformTransactionManager platformTransactionManager) {
-        return new JobBuilder("ImportPerson", jobRepository)
+        return new JobBuilder("ImportAddress", jobRepository)
                 .flow(childStep(jobRepository, platformTransactionManager))
                 .end().build();
     }
@@ -107,6 +107,4 @@ public class BatchConfig {
                 .partitionHandler(partitionHandler(jobRepository, platformTransactionManager))
                 .build();
     }
-
-
 }
